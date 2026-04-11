@@ -15,17 +15,16 @@ class AccessTier(str, Enum):
 class MonetizationRule(BaseModel):
     """Rules for classifying content into free or premium tiers.
 
-    Free content strategy (capture & engage):
-    - Beginner-level tutorials → low barrier to entry
-    - Trending topics digest (titles + summaries only) → hook users
-    - Older content (>7 days since discovery) → time-delayed freemium
-    - Gap analysis results (what's missing) → build community trust
+    Free content strategy (20% — minimal funnel entry):
+    - Beginner-level tutorials that are also older than 30 days → both conditions required
     - Top 3 tutorials per weekly digest → taste of quality
+    - Gap analysis results (what's missing) → build community trust
 
-    Premium content strategy (monetize):
+    Premium content strategy (80% — monetize):
+    - All intermediate and advanced content → always premium regardless of age
+    - Recent beginner content (< 30 days old) → speed advantage
     - Full ranked tutorial lists with deep scores → complete intelligence
     - Real-time trend alerts (< 24h old) → speed advantage
-    - Advanced/intermediate curated paths → high-value learning
     - Personalized recommendations → tailored experience
     - API access for integration → B2B value
     - Content gap opportunities → for creators/businesses
@@ -34,11 +33,14 @@ class MonetizationRule(BaseModel):
 
     # Thresholds
     free_max_results_per_digest: int = Field(default=3)
-    free_delay_hours: int = Field(default=168)  # 7 days
+    free_delay_hours: int = Field(default=720)  # 30 days — both conditions must apply
     premium_realtime_window_hours: int = Field(default=24)
 
-    # Free difficulties
+    # Free difficulties — free only when ALSO older than free_delay_hours
     free_difficulties: list[str] = Field(default=["beginner"])
+
+    # Hard cap: free tutorials cannot exceed this fraction of any batch
+    free_ratio_cap: float = Field(default=0.20)
 
     # Free content types (summaries only, no deep scores)
     free_includes_scores: bool = Field(default=False)
@@ -70,24 +72,26 @@ def classify_access(
 ) -> AccessTier:
     """Determine whether a tutorial should be free or premium.
 
-    Strategy:
-    - Beginner content → FREE (hook new users)
-    - Old content (>7 days) → FREE (time-delayed freemium)
-    - Hot trending + recent + high quality → PREMIUM (speed advantage)
-    - Intermediate/Advanced + high quality → PREMIUM (depth value)
+    Strategy (80% paid / 20% free):
+    - Intermediate or Advanced content → always PREMIUM regardless of age
+    - Beginner + recent (< 30 days) → PREMIUM (early-access value)
+    - Beginner + old (≥ 30 days) → FREE (minimal funnel entry)
+
+    Note: a hard 20% cap is enforced in classify_tiers() after this function
+    runs across the full batch, so the free ratio never exceeds free_ratio_cap.
     """
     if rule is None:
         rule = MonetizationRule()
 
-    # Beginner content is always free — build the top of the funnel
-    if difficulty in rule.free_difficulties:
+    # Non-beginner content is always premium — depth and recency drive value
+    if difficulty not in rule.free_difficulties:
+        return AccessTier.PREMIUM
+
+    # Beginner content is only free when it is also sufficiently old
+    if age_hours >= rule.free_delay_hours:
         return AccessTier.FREE
 
-    # Old content becomes free — time-delayed freemium
-    if age_hours > rule.free_delay_hours:
-        return AccessTier.FREE
-
-    # Everything else is premium — real-time, high-quality, advanced
+    # Beginner but still recent — premium for the early-access window
     return AccessTier.PREMIUM
 
 
@@ -97,9 +101,8 @@ PRICING = {
         "price": 0,
         "features": [
             "Weekly digest (top 3 tutorials)",
-            "Beginner-level content",
+            "Beginner-level content older than 30 days",
             "Trend overview (titles only)",
-            "7-day delayed access to all content",
         ],
     },
     "pro": {

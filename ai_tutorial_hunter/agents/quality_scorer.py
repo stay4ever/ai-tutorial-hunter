@@ -126,7 +126,15 @@ class QualityScorer:
         return min(100.0, score)
 
     def classify_tiers(self, tutorials: list[Tutorial]) -> dict[str, AccessTier]:
-        """Classify each tutorial as free or premium."""
+        """Classify each tutorial as free or premium, enforcing the 20% free cap.
+
+        Tutorials are expected to be sorted by final_rank descending (highest first).
+        When the free count would exceed free_ratio_cap, the lowest-ranked free
+        tutorials are promoted to premium to stay within the target 80/20 split.
+        """
+        from ai_tutorial_hunter.models.monetization import MonetizationRule
+        rule = MonetizationRule()
+
         tiers: dict[str, AccessTier] = {}
         for t in tutorials:
             tiers[t.id] = classify_access(
@@ -134,5 +142,15 @@ class QualityScorer:
                 age_hours=t.age_hours,
                 quality_score=t.quality_score,
                 is_trending=t.trending_score > 30,
+                rule=rule,
             )
+
+        # Enforce hard 20% cap: tutorials are already sorted by final_rank desc,
+        # so iterating in order means we hit the highest-ranked free tutorials first.
+        # Excess free slots (tail of the free list) get promoted to premium.
+        max_free = max(1, int(len(tutorials) * rule.free_ratio_cap))
+        free_ids = [t.id for t in tutorials if tiers[t.id] == AccessTier.FREE]
+        for tid in free_ids[max_free:]:
+            tiers[tid] = AccessTier.PREMIUM
+
         return tiers

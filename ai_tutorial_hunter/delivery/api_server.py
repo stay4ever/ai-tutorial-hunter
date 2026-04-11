@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Query
 
-from ai_tutorial_hunter.models.monetization import PRICING, AccessTier
+from ai_tutorial_hunter.models.monetization import PRICING, AccessTier, classify_access
 from ai_tutorial_hunter.storage.database import Database
 
 
@@ -38,7 +38,12 @@ def create_app() -> FastAPI:
         tutorials = db.get_top_tutorials(limit=100)
         free = [
             t for t in tutorials
-            if t.difficulty == "beginner" or t.age_hours > 168
+            if classify_access(
+                difficulty=t.difficulty,
+                age_hours=t.age_hours,
+                quality_score=t.quality_score,
+                is_trending=t.trending_score > 30,
+            ) == AccessTier.FREE
         ]
         return {
             "count": len(free[:limit]),
@@ -50,7 +55,12 @@ def create_app() -> FastAPI:
         tutorials = db.get_top_tutorials(limit=100)
         premium = [
             t for t in tutorials
-            if t.difficulty != "beginner" and t.age_hours <= 168
+            if classify_access(
+                difficulty=t.difficulty,
+                age_hours=t.age_hours,
+                quality_score=t.quality_score,
+                is_trending=t.trending_score > 30,
+            ) == AccessTier.PREMIUM
         ]
         return {
             "count": len(premium[:limit]),
