@@ -176,13 +176,19 @@ def digest(
         send_digest(email_to, html)
         console.print(f"[green]Digest sent to {email_to}[/green]")
     else:
+        from ai_tutorial_hunter.models.monetization import classify_access
         table = Table(title="Today's Digest")
         table.add_column("#", justify="right", style="dim")
         table.add_column("Title", style="green")
         table.add_column("Score", justify="right")
         table.add_column("Tier")
         for i, t in enumerate(tutorials[:15], 1):
-            tier = "free" if t.difficulty == "beginner" or t.age_hours > 168 else "premium"
+            tier = classify_access(
+                difficulty=t.difficulty,
+                age_hours=t.age_hours,
+                quality_score=t.quality_score,
+                is_trending=t.trending_score > 30,
+            ).value
             style = "green" if tier == "free" else "yellow"
             table.add_row(str(i), t.title[:55], f"{t.final_rank:.1f}", f"[{style}]{tier}[/{style}]")
         console.print(table)
