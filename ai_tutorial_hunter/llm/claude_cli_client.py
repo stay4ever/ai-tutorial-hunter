@@ -46,7 +46,8 @@ class _Messages:
             raise ClaudeCLIError(f"claude CLI timed out after {self._timeout}s") from e
 
         if proc.returncode != 0:
-            raise ClaudeCLIError(f"claude CLI exited {proc.returncode}: {proc.stderr.strip()[:500]}")
+            detail = proc.stderr.strip() or proc.stdout.strip()
+            raise ClaudeCLIError(f"claude CLI exited {proc.returncode}: {detail[:1000]}")
 
         try:
             payload = json.loads(proc.stdout)
