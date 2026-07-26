@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 
-import anthropic
-
 from ai_tutorial_hunter.config.settings import get_settings
+from ai_tutorial_hunter.llm.claude_cli_client import ClaudeCLIClient
 from ai_tutorial_hunter.models.tutorial import Tutorial
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class Summarizer:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self._client = ClaudeCLIClient()
         self._model = settings.llm_model
 
     def summarize(self, tutorial: Tutorial) -> str:

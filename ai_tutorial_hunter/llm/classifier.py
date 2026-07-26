@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 import logging
 
-import anthropic
-
 from ai_tutorial_hunter.config.settings import get_settings
 from ai_tutorial_hunter.config.topics import TOPIC_TAXONOMY, DIFFICULTY_LEVELS
+from ai_tutorial_hunter.llm.claude_cli_client import ClaudeCLIClient
 from ai_tutorial_hunter.models.tutorial import Tutorial
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ class Classifier:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self._client = ClaudeCLIClient()
         self._model = settings.llm_model
         self._categories = list(TOPIC_TAXONOMY.keys())
 
