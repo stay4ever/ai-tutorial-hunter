@@ -40,6 +40,16 @@ def run(
 
     result = asyncio.run(_run())
 
+    # Persist so downstream consumers (e.g. tutorial-genesys's DB fallback)
+    # can read this run's results instead of finding no database.
+    if result.tutorials or result.trends:
+        from ai_tutorial_hunter.storage.database import Database
+
+        db = Database()
+        db.create_tables()
+        db.save_tutorials(result.tutorials)
+        db.save_trends(result.trends)
+
     # Display results
     if result.trends:
         console.print(f"\n[green]Trends detected:[/green] {len(result.trends)}")
