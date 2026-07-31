@@ -63,7 +63,7 @@ class _Messages:
 class ClaudeCLIClient:
     """Stand-in for anthropic.Anthropic's `.messages.create()`, backed by the `claude` CLI."""
 
-    def __init__(self, binary: str = "claude", timeout: int = 600) -> None:
+    def __init__(self, binary: str = "claude", timeout: int = 1800) -> None:
         resolved = shutil.which(binary)
         if not resolved:
             raise ClaudeCLIError(
